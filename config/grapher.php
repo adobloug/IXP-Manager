@@ -29,6 +29,7 @@ return [
     'providers' => [
         'dummy'         => IXP\Services\Grapher\Backend\Dummy::class,
         'mrtg'          => IXP\Services\Grapher\Backend\Mrtg::class,
+        'graphite'      => IXP\Services\Grapher\Backend\Graphite::class,
         'sflow'         => IXP\Services\Grapher\Backend\Sflow::class,
         'smokeping'     => IXP\Services\Grapher\Backend\Smokeping::class,
     ],
@@ -80,6 +81,30 @@ return [
 
             // tmp until we sort out trunks:
             'snmppasswd' => env( 'GRAPHER_BACKEND_MRTG_SNMPPASSWD', 'soopersecret' ),
+        ],
+
+        'graphite'  => [
+            // Metric name prefix. MUST match telegraf's outputs.graphite `prefix`.
+            // Full leaf: <prefix>.switch.<switchId>.port.<ifIndex>.<cat>.<dir>
+            'prefix'      => env( 'GRAPHER_BACKEND_GRAPHITE_PREFIX', 'ixpmanager' ),
+
+            // Remote carbon (line receiver) that telegraf pushes metrics to.
+            'carbon_host' => env( 'GRAPHER_BACKEND_GRAPHITE_CARBON_HOST', 'localhost' ),
+            'carbon_port' => env( 'GRAPHER_BACKEND_GRAPHITE_CARBON_PORT', 2003 ),
+
+            // telegraf SNMP poll interval (also the carbon step).
+            'interval'    => env( 'GRAPHER_BACKEND_GRAPHITE_INTERVAL', '5m' ),
+
+            // READ side: the remote graphite-web render API base URL (the backend
+            // appends /render). Queried for JSON data and proxied PNGs.
+            'render_url'  => env( 'GRAPHER_BACKEND_GRAPHITE_URL', 'http://graphite.example.com' ),
+
+            // READ side: HTTP timeout (seconds) for render API requests.
+            'timeout'     => env( 'GRAPHER_BACKEND_GRAPHITE_TIMEOUT', 5 ),
+
+            // READ side: optional graphite-web PNG render theme (server-side
+            // `template=`, e.g. a custom theme). Null/empty = graphite default.
+            'png_template' => env( 'GRAPHER_BACKEND_GRAPHITE_PNG_TEMPLATE', null ),
         ],
 
         'sflow' => [
