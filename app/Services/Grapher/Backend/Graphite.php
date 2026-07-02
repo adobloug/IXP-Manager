@@ -342,7 +342,12 @@ class Graphite extends GrapherBackend implements GrapherBackendContract
             case 'Customer':
                 /** @var Graph\Customer $graph */
                 $id = $graph->customer()->id;
-                return $this->leavesFromPis( array_filter( $this->peeringPis(),
+                // By default a customer's own graph excludes their reseller/fanout
+                // ports (the correct view: those are not the member's peering
+                // traffic). Set the config flag false for Mrtg-compatible behaviour,
+                // where a customer graph counts ALL their connected ports.
+                $excludeRF = config( 'grapher.backends.graphite.customer_graphs_exclude_reseller_fanout', true );
+                return $this->leavesFromPis( array_filter( $this->peeringPis( $excludeRF ),
                     static fn( PhysicalInterface $pi ): bool => $pi->virtualInterface->customer->id === $id ) );
 
             case 'Switcher':
@@ -380,13 +385,17 @@ class Graphite extends GrapherBackend implements GrapherBackendContract
      * All connected, pollable, peering physical interfaces across the IXP.
      *
      * Mirrors the customer walk in {@see Mrtg::getPeeringPorts()}: skips core-bundle
-     * VIs, disconnected ports, ports with no ifIndex, ports on inactive/unpolled
-     * switches, and reseller/fanout ports. This is the single source of the
-     * peering-only membership used by all aggregate graphs.
+     * VIs, disconnected ports, ports with no ifIndex, and ports on inactive/unpolled
+     * switches. This is the single source of the peering-only membership used by all
+     * aggregate graphs.
+     *
+     * Reseller/fanout ports are dropped when $excludeResellerFanout is true. Aggregate
+     * graphs always exclude them (Mrtg parity); the customer path passes the config
+     * flag so the exclusion can be relaxed for Mrtg-compatible per-customer graphs.
      *
      * @return array<int, PhysicalInterface>
      */
-    private function peeringPis(): array
+    private function peeringPis( bool $excludeResellerFanout = true ): array
     {
         $pis = [];
 
@@ -407,7 +416,9 @@ class Graphite extends GrapherBackend implements GrapherBackendContract
                     }
 
                     // don't count reseller or fanout ports in aggregates
-                    if( $pi->switchPort->typeReseller() || $pi->switchPort->typeFanout() ) {
+                    if( $excludeResellerFanout
+                        && ( $pi->switchPort->typeReseller() || $pi->switchPort->typeFanout() )
+                    ) {
                         continue;
                     }
 

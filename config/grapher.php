@@ -105,6 +105,13 @@ return [
             // READ side: optional graphite-web PNG render theme (server-side
             // `template=`, e.g. a custom theme). Null/empty = graphite default.
             'png_template' => env( 'GRAPHER_BACKEND_GRAPHITE_PNG_TEMPLATE', null ),
+
+            // READ side: exclude a customer's reseller/fanout ports from their OWN
+            // graph (true, default: those are not the member's peering traffic).
+            // Set false for Mrtg-compatible behaviour where a customer graph counts
+            // ALL their connected ports. Aggregate graphs always exclude them.
+            'customer_graphs_exclude_reseller_fanout' =>
+                env( 'GRAPHER_BACKEND_GRAPHITE_CUSTOMER_EXCLUDE_RESELLER_FANOUT', true ),
         ],
 
         'sflow' => [
