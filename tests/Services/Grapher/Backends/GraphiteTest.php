@@ -24,6 +24,7 @@ namespace Tests\Services\Grapher\Backends;
  */
 
 use ReflectionMethod;
+use ReflectionProperty;
 
 use Carbon\Carbon;
 
@@ -86,6 +87,30 @@ class GraphiteTest extends TestCase
         $m = new ReflectionMethod( $this->backend, $method );
         $m->setAccessible( true );
         return $m->invokeArgs( $this->backend, $args );
+    }
+
+    /**
+     * Seed the backend's in-process port-catalog memo so catalogLeaves() can be
+     * exercised without a database (portCatalog() returns the memo as-is).
+     *
+     * @param array<int, array{sw:int, if:int, cust:int, loc:int, infra:int, rf:bool}> $rows
+     */
+    private function seedCatalog( array $rows ): void
+    {
+        $p = new ReflectionProperty( GraphiteBackend::class, 'catalog' );
+        $p->setAccessible( true );
+        $p->setValue( null, $rows );
+    }
+
+    #[\Override]
+    protected function tearDown(): void
+    {
+        // static memo persists across tests in one process — reset it
+        $p = new ReflectionProperty( GraphiteBackend::class, 'catalog' );
+        $p->setAccessible( true );
+        $p->setValue( null, null );
+
+        parent::tearDown();
     }
 
     // ---------------------------------------------------------------------
@@ -249,5 +274,70 @@ class GraphiteTest extends TestCase
         // aggregates: bits + pkts only; detailed: all categories
         $this->assertSame( [ Graph::CATEGORY_BITS, Graph::CATEGORY_PACKETS ], array_values( $s[ 'ixp' ][ 'categories' ] ) );
         $this->assertSame( Graph::CATEGORIES, $s[ 'customer' ][ 'categories' ] );
+    }
+
+    // ---------------------------------------------------------------------
+    // catalogLeaves() — in-memory filtering of the port catalog
+    // ---------------------------------------------------------------------
+
+    /** A small fixture catalog exercising every grouping key + the rf flag. */
+    private function fixtureCatalog(): array
+    {
+        return [
+            [ 'sw' => 1, 'if' => 10, 'cust' => 100, 'loc' => 5, 'infra' => 2, 'rf' => false ],
+            [ 'sw' => 1, 'if' => 11, 'cust' => 100, 'loc' => 5, 'infra' => 2, 'rf' => true  ], // reseller/fanout
+            [ 'sw' => 2, 'if' => 20, 'cust' => 101, 'loc' => 6, 'infra' => 2, 'rf' => false ],
+            [ 'sw' => 3, 'if' => 30, 'cust' => 100, 'loc' => 5, 'infra' => 3, 'rf' => false ],
+        ];
+    }
+
+    public function testCatalogLeavesProjectsSwIfOnly(): void
+    {
+        $this->seedCatalog( $this->fixtureCatalog() );
+
+        $leaves = $this->invoke( 'catalogLeaves', [ static fn( array $r ): bool => $r[ 'sw' ] === 1 && !$r[ 'rf' ] ] );
+
+        // switcher predicate: only the non-rf port on switch 1, projected to sw/if
+        $this->assertSame( [ [ 'sw' => 1, 'if' => 10 ] ], $leaves );
+    }
+
+    public function testCatalogLeavesIxpExcludesResellerFanout(): void
+    {
+        $this->seedCatalog( $this->fixtureCatalog() );
+
+        $leaves = $this->invoke( 'catalogLeaves', [ static fn( array $r ): bool => !$r[ 'rf' ] ] );
+
+        // the rf port (sw1/if11) is dropped; all others kept
+        $this->assertSame( [
+            [ 'sw' => 1, 'if' => 10 ],
+            [ 'sw' => 2, 'if' => 20 ],
+            [ 'sw' => 3, 'if' => 30 ],
+        ], $leaves );
+    }
+
+    public function testCatalogLeavesLocationAndInfraFilters(): void
+    {
+        $this->seedCatalog( $this->fixtureCatalog() );
+
+        $loc = $this->invoke( 'catalogLeaves', [ static fn( array $r ): bool => $r[ 'loc' ] === 5 && !$r[ 'rf' ] ] );
+        $this->assertSame( [ [ 'sw' => 1, 'if' => 10 ], [ 'sw' => 3, 'if' => 30 ] ], $loc );
+
+        $infra = $this->invoke( 'catalogLeaves', [ static fn( array $r ): bool => $r[ 'infra' ] === 2 && !$r[ 'rf' ] ] );
+        $this->assertSame( [ [ 'sw' => 1, 'if' => 10 ], [ 'sw' => 2, 'if' => 20 ] ], $infra );
+    }
+
+    public function testCatalogLeavesCustomerRespectsResellerFanoutFlag(): void
+    {
+        $this->seedCatalog( $this->fixtureCatalog() );
+
+        // exclude=true (default): customer 100 without their rf port
+        $excluded = $this->invoke( 'catalogLeaves',
+            [ static fn( array $r ): bool => $r[ 'cust' ] === 100 && !( true && $r[ 'rf' ] ) ] );
+        $this->assertSame( [ [ 'sw' => 1, 'if' => 10 ], [ 'sw' => 3, 'if' => 30 ] ], $excluded );
+
+        // exclude=false (Mrtg-compatible): customer 100 including their rf port
+        $included = $this->invoke( 'catalogLeaves',
+            [ static fn( array $r ): bool => $r[ 'cust' ] === 100 && !( false && $r[ 'rf' ] ) ] );
+        $this->assertSame( [ [ 'sw' => 1, 'if' => 10 ], [ 'sw' => 1, 'if' => 11 ], [ 'sw' => 3, 'if' => 30 ] ], $included );
     }
 }

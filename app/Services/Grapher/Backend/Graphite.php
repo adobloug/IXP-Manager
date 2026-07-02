@@ -341,35 +341,35 @@ class Graphite extends GrapherBackend implements GrapherBackendContract
 
             case 'Customer':
                 /** @var Graph\Customer $graph */
-                $id = $graph->customer()->id;
+                $id = (int) $graph->customer()->id;
                 // By default a customer's own graph excludes their reseller/fanout
                 // ports (the correct view: those are not the member's peering
                 // traffic). Set the config flag false for Mrtg-compatible behaviour,
                 // where a customer graph counts ALL their connected ports.
                 $excludeRF = config( 'grapher.backends.graphite.customer_graphs_exclude_reseller_fanout', true );
-                return $this->leavesFromPis( array_filter( $this->peeringPis( $excludeRF ),
-                    static fn( PhysicalInterface $pi ): bool => $pi->virtualInterface->customer->id === $id ) );
+                return $this->catalogLeaves(
+                    static fn( array $r ): bool => $r[ 'cust' ] === $id && !( $excludeRF && $r[ 'rf' ] ) );
 
             case 'Switcher':
                 /** @var Graph\Switcher $graph */
-                $id = $graph->switch()->id;
-                return $this->leavesFromPis( array_filter( $this->peeringPis(),
-                    static fn( PhysicalInterface $pi ): bool => $pi->switchPort->switcher->id === $id ) );
+                $id = (int) $graph->switch()->id;
+                return $this->catalogLeaves(
+                    static fn( array $r ): bool => $r[ 'sw' ] === $id && !$r[ 'rf' ] );
 
             case 'Location':
                 /** @var Graph\Location $graph */
-                $id = $graph->location()->id;
-                return $this->leavesFromPis( array_filter( $this->peeringPis(),
-                    static fn( PhysicalInterface $pi ): bool => $pi->switchPort->switcher->cabinet->location->id === $id ) );
+                $id = (int) $graph->location()->id;
+                return $this->catalogLeaves(
+                    static fn( array $r ): bool => $r[ 'loc' ] === $id && !$r[ 'rf' ] );
 
             case 'Infrastructure':
                 /** @var Graph\Infrastructure $graph */
-                $id = $graph->infrastructure()->id;
-                return $this->leavesFromPis( array_filter( $this->peeringPis(),
-                    static fn( PhysicalInterface $pi ): bool => $pi->switchPort->switcher->infrastructureModel->id === $id ) );
+                $id = (int) $graph->infrastructure()->id;
+                return $this->catalogLeaves(
+                    static fn( array $r ): bool => $r[ 'infra' ] === $id && !$r[ 'rf' ] );
 
             case 'IXP':
-                return $this->leavesFromPis( $this->peeringPis() );
+                return $this->catalogLeaves( static fn( array $r ): bool => !$r[ 'rf' ] );
 
             case 'CoreBundle':
                 /** @var Graph\CoreBundle $graph */
@@ -382,52 +382,123 @@ class Graphite extends GrapherBackend implements GrapherBackendContract
     }
 
     /**
-     * All connected, pollable, peering physical interfaces across the IXP.
+     * In-process memo of the port catalog (shared across the per-graph backend
+     * instances that {@see \IXP\Services\Grapher::backend()} news up for one request).
      *
-     * Mirrors the customer walk in {@see Mrtg::getPeeringPorts()}: skips core-bundle
-     * VIs, disconnected ports, ports with no ifIndex, and ports on inactive/unpolled
-     * switches. This is the single source of the peering-only membership used by all
-     * aggregate graphs.
-     *
-     * Reseller/fanout ports are dropped when $excludeResellerFanout is true. Aggregate
-     * graphs always exclude them (Mrtg parity); the customer path passes the config
-     * flag so the exclusion can be relaxed for Mrtg-compatible per-customer graphs.
-     *
-     * @return array<int, PhysicalInterface>
+     * @var array<int, array{sw:int, if:int, cust:int, loc:int, infra:int, rf:bool}>|null
      */
-    private function peeringPis( bool $excludeResellerFanout = true ): array
-    {
-        $pis = [];
+    private static ?array $catalog = null;
 
-        foreach( Customer::all() as $c ) {
+    /**
+     * Filter the port catalog to `[ 'sw' => …, 'if' => … ]` leaves.
+     *
+     * @param callable(array{sw:int, if:int, cust:int, loc:int, infra:int, rf:bool}):bool $pred
+     *
+     * @return array<int, array{sw:int, if:int}>
+     */
+    private function catalogLeaves( callable $pred ): array
+    {
+        $leaves = [];
+        foreach( $this->portCatalog() as $r ) {
+            if( $pred( $r ) ) {
+                $leaves[] = [ 'sw' => $r[ 'sw' ], 'if' => $r[ 'if' ] ];
+            }
+        }
+        return $leaves;
+    }
+
+    /**
+     * The peering-port catalog: one lightweight row per connected, pollable peering
+     * switch port across the IXP, carrying the grouping ids every aggregate/customer
+     * graph filters on. Built once, cached, and filtered in memory by
+     * {@see self::catalogLeaves()} — replacing a full per-graph DB walk.
+     *
+     * Memoised in-process, then in the grapher cache store (same lifetime as graph
+     * data), so it is reused across graphs and across requests.
+     *
+     * @return array<int, array{sw:int, if:int, cust:int, loc:int, infra:int, rf:bool}>
+     */
+    private function portCatalog(): array
+    {
+        if( self::$catalog !== null ) {
+            return self::$catalog;
+        }
+
+        /** @var array<int, array{sw:int, if:int, cust:int, loc:int, infra:int, rf:bool}> $catalog */
+        $catalog = app( \IXP\Services\Grapher::class )->remember(
+            'graphite.portcatalog', fn(): array => $this->buildPortCatalog() );
+
+        return self::$catalog = $catalog;
+    }
+
+    /**
+     * Build the port catalog with a single eager-loaded query.
+     *
+     * Same membership rules as the old per-graph walk (and {@see Mrtg::getPeeringPorts()}):
+     * skip core-bundle VIs, disconnected/quarantine ports, ports with no ifIndex, and
+     * ports on inactive/unpolled switches. Reseller/fanout ports are kept but tagged
+     * `rf => true` so each graph type applies the exclusion itself at filter time.
+     *
+     * NB: core-bundle VIs are detected via the eager-loaded `coreInterface` relation
+     * (a property read, no query) — deliberately NOT via
+     * {@see \IXP\Models\VirtualInterface::getCoreBundle()}, which issues an
+     * `exists()` per port and was the dominant N+1 in the old walk.
+     *
+     * @return array<int, array{sw:int, if:int, cust:int, loc:int, infra:int, rf:bool}>
+     */
+    private function buildPortCatalog(): array
+    {
+        $customers = Customer::with( [
+            'virtualInterfaces.physicalInterfaces.switchPort.switcher.cabinet.location',
+            'virtualInterfaces.physicalInterfaces.switchPort.switcher.infrastructureModel',
+            'virtualInterfaces.physicalInterfaces.coreInterface',
+        ] )->get();
+
+        $rows = [];
+
+        foreach( $customers as $c ) {
             foreach( $c->virtualInterfaces as $vi ) {
-                // core bundle interfaces have their own CoreBundle graphs
-                if( $vi->getCoreBundle() !== false ) {
+
+                // core bundle interfaces have their own CoreBundle graphs; detect
+                // them from the loaded relation (no query) instead of getCoreBundle()
+                $isCoreBundle = false;
+                foreach( $vi->physicalInterfaces as $pi ) {
+                    if( $pi->coreInterface !== null ) {
+                        $isCoreBundle = true;
+                        break;
+                    }
+                }
+                if( $isCoreBundle ) {
                     continue;
                 }
 
                 /** @var PhysicalInterface $pi */
                 foreach( $vi->physicalInterfaces as $pi ) {
-                    if( !$pi->isConnectedOrQuarantine()
-                        || !$pi->switchPort->ifIndex
-                        || !( $pi->switchPort->switcher->active && $pi->switchPort->switcher->poll )
+                    $sp = $pi->switchPort;
+                    if( !$pi->isConnectedOrQuarantine() || !$sp || !$sp->ifIndex ) {
+                        continue;
+                    }
+
+                    $sw = $sp->switcher;
+                    if( !$sw || !$sw->active || !$sw->poll
+                        || !$sw->cabinet || !$sw->cabinet->location || !$sw->infrastructureModel
                     ) {
                         continue;
                     }
 
-                    // don't count reseller or fanout ports in aggregates
-                    if( $excludeResellerFanout
-                        && ( $pi->switchPort->typeReseller() || $pi->switchPort->typeFanout() )
-                    ) {
-                        continue;
-                    }
-
-                    $pis[] = $pi;
+                    $rows[] = [
+                        'sw'    => (int) $sw->id,
+                        'if'    => (int) $sp->ifIndex,
+                        'cust'  => (int) $c->id,
+                        'loc'   => (int) $sw->cabinet->location->id,
+                        'infra' => (int) $sw->infrastructureModel->id,
+                        'rf'    => $sp->typeReseller() || $sp->typeFanout(),
+                    ];
                 }
             }
         }
 
-        return $pis;
+        return $rows;
     }
 
     /**
