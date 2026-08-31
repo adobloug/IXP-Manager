@@ -1,9 +1,6 @@
 <?php
-
-namespace IXP\Http\Controllers\Api\V4;
-
 /*
- * Copyright (C) 2009 - 2019 Internet Neutral Exchange Association Company Limited By Guarantee.
+ * Copyright (C) 2009 - 2026 Internet Neutral Exchange Association Company Limited By Guarantee.
  * All Rights Reserved.
  *
  * This file is part of IXP Manager.
@@ -23,6 +20,10 @@ namespace IXP\Http\Controllers\Api\V4;
  * http://www.gnu.org/licenses/gpl-2.0.html
  */
 
+declare(strict_types=1);
+
+namespace IXP\Http\Controllers\Api\V4;
+
 use Illuminate\Database\Eloquent\Builder;
 
 use Illuminate\Http\{
@@ -37,6 +38,7 @@ use IXP\Models\{
     Infrastructure,
     PhysicalInterface,
     Router,
+    TaskLastRun,
     Vlan
 };
 
@@ -81,6 +83,8 @@ class NagiosController extends Controller
             abort(404, 'Unknown template');
         }
 
+        TaskLastRun::updateNagiosCustomers( [ 'vlan' => $vlan->id, 'protocol' => $protocol, 'template' => $tmpl ] );
+
         return response()
             ->view( $tmpl, [
                 'vlan'     => $vlan,
@@ -119,6 +123,8 @@ class NagiosController extends Controller
         if( !FacadeView::exists( $tmpl ) ) {
             abort(404, 'Unknown template');
         }
+
+        TaskLastRun::updateNagiosSwitches( [ 'infrastructure' => $infra->id, 'template' => $tmpl ] );
 
         return response()
             ->view( $tmpl, [
@@ -162,6 +168,8 @@ class NagiosController extends Controller
         if( !FacadeView::exists( $tmpl ) ) {
             abort(404, 'Unknown template');
         }
+
+        TaskLastRun::updateNagiosBirdseyeDaemons( [ 'template' => $tmpl, 'vlan' => $vlan?->id ] );
 
         return response()
                 ->view( $tmpl, [
@@ -219,6 +227,8 @@ class NagiosController extends Controller
         if( !$routers->count() ) {
             abort( 404, "No suitable router(s) found." );
         }
+
+        TaskLastRun::updateNagiosBgpSessions( [ 'vlan' => $vlan->id, 'protocol' => $protocol, 'type' => $type, 'template' => $tmpl ] );
 
         return response()
             ->view( $tmpl, [

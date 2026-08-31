@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright (C) 2009 - 2024 Internet Neutral Exchange Association Company Limited By Guarantee.
+ * Copyright (C) 2009 - 2026 Internet Neutral Exchange Association Company Limited By Guarantee.
  * All Rights Reserved.
  *
  * This file is part of IXP Manager.
@@ -62,7 +62,7 @@ return [
                 ],
                 
                 'app-passwords' => [
-                    'config_key' => 'ixp_fe.frontend.disabled.app-password',
+                    'config_key' => 'ixp_fe.frontend.disabled.app-passwords',
                     'dotenv_key' => 'IXP_FE_FRONTEND_DISABLED_APP_PASSWORD',
                     'type'       => 'radio',
                     'invert'     => true,
@@ -217,6 +217,21 @@ return [
                                         target="_blank">BGP detector</a> running.',
                 ],
 
+                'vlaninterfaces-max-prefix-enabled' => [
+                    'config_key' => 'ixp_fe.vlaninterfaces.max_prefix_enabled',
+                    'dotenv_key' => 'IXP_FE_VLANINTERFACES_MAX_PREFIX_ENABLED',
+                    'type'       => 'radio',
+                    'invert'     => false,
+                    'rules'      => 'boolean',
+                    'name'       => 'Per-VLAN Interface Maximum Prefixes',
+                    'docs_url'   => null,
+                    'help'       => 'Allow maximum prefixes to be set per VLAN interface.
+                                        If you only operate a single peering VLAN or infrastructure in one geographic location,
+                                        you may want to disable this and only use the global maximum prefix settings for each
+                                        member. Before disabling, run <code>php ./artisan customer:update-global-max-prefixes</code>',
+                ],
+
+
                 'phpinfo'                   => [
                     'config_key' => 'ixp_fe.frontend.disabled.phpinfo',
                     'dotenv_key' => 'IXP_FE_FRONTEND_DISABLED_PHPINFO',
@@ -227,17 +242,6 @@ return [
                     'docs_url'   => null,
                     'help'       => 'The PHP Info option under IXP Utilities on the left-hand menu. This is available to 
                                         administrators only and shows the output of <code>phpinfo()</code>.',
-                ],
-
-                'rs-prefixes'               => [
-                    'config_key' => 'ixp_fe.frontend.disabled.rs-prefixes',
-                    'dotenv_key' => 'IXP_FE_FRONTEND_DISABLED_RS_PREFIXES',
-                    'type'       => 'radio',
-                    'invert'     => true,
-                    'rules'      => 'boolean',
-                    'name'       => 'RS Prefixes',
-                    'docs_url'   => null,
-                    'help'       => '[DEPRECATED] <em>Filtered Prefixes</em> above should be used instead of this.',
                 ],
 
                 'rs-filters'                => [
@@ -573,8 +577,18 @@ return [
                     'type'       => 'radio',
                     'rules'      => 'boolean',
                     'name'       => 'Unsecured API Access Enabled',
-                    'docs_url'   => 'https://docs.ixpmanager.org/install/security/',
+                    'docs_url'   => 'https://docs.ixpmanager.org/latest/install/security/',
                     'help'       => 'IXP Manager v7.1.0 introduced an admin/ prepend on APIs for securing them. For v7.1.0 only, unsecured access will be enabled by default to allow administrators migrate their API clients.',
+                ],
+
+                'api_key_via_get'      => [
+                    'config_key' => 'ixp_api.allow_apikeys_get_parameter',
+                    'dotenv_key' => 'IXP_ALLOW_DEPRECATED_APIKEYS_VIA_GET',
+                    'type'       => 'radio',
+                    'rules'      => 'boolean',
+                    'name'       => 'Allow API authentication via GET parameter',
+                    'docs_url'   => 'https://docs.ixpmanager.org/latest/install/security/',
+                    'help'       => 'This setting determines whether IXP Manager will accept API keys provided via GET parameter. It is on by default in v7.3.0, but will be disabled by default in v7.4.0.',
                 ],
             
             ],

@@ -207,6 +207,7 @@ return [
          Illuminate\Translation\TranslationServiceProvider::class,
          Illuminate\Validation\ValidationServiceProvider::class,
          Illuminate\View\ViewServiceProvider::class,
+         Illuminate\Concurrency\ConcurrencyServiceProvider::class,
 
         /*
          * Application Service Providers...
@@ -228,6 +229,7 @@ return [
         IXP\Providers\IxpServiceProvider::class,
         IXP\Providers\RipeAtlasProvider::class,
         IXP\Providers\RipeRestApiProvider::class,
+        IXP\Providers\ValidationServiceProvider::class,
 
         IXP\Providers\DiagnosticsServiceProvider::class,
 

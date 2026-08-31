@@ -72,7 +72,7 @@ use PragmaRX\Google2FALaravel\Support\Authenticator as GoogleAuthenticator;
             </li>
 
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle <?= !request()->is( 'peering-manager' , 'lg', 'peering-matrix', 'rs-prefixes/list' ) ?: 'active' ?>" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <a class="nav-link dropdown-toggle <?= !request()->is( 'peering-manager' , 'lg', 'peering-matrix' ) ?: 'active' ?>" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     Peering
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarDropdown">
@@ -82,13 +82,6 @@ use PragmaRX\Google2FALaravel\Support\Authenticator as GoogleAuthenticator;
                         </a>
                     <?php endif; ?>
 
-                    <?php if( !config( 'ixp_fe.frontend.disabled.rs-prefixes', false ) ): ?>
-                        <?php if( Auth::getUser()->customer->routeServerClient() ): ?>
-                            <a class="dropdown-item <?= !request()->is( 'rs-prefixes/list' ) ?: 'active' ?>" href="<?= route('rs-prefixes@list') ?>">
-                                Route Server Prefixes
-                            </a>
-                        <?php endif; ?>
-                    <?php endif; ?>
 
                     <?php if( !config( 'ixp_fe.frontend.disabled.rs-filters', true ) ): ?>
                         <?php if( Auth::getUser()->customer->routeServerClient() ): ?>
@@ -249,7 +242,7 @@ use PragmaRX\Google2FALaravel\Support\Authenticator as GoogleAuthenticator;
 
             <li class="nav-item">
                 <?php if( session()->exists( "switched_user_from" ) ): ?>
-                    <a class="nav-link" href="<?= route( 'switch-user@switchBack' ) ?>">
+                    <a id="nav-item-switch-user-back" class="nav-link" href="<?= route( 'switch-user@switchBack' ) ?>">
                         Switch Back
                     </a>
                 <?php else: ?>

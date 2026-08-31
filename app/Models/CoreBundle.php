@@ -53,23 +53,23 @@ use OSS_SNMP\MIBS\Iface;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Collection<int, \IXP\Models\CoreLink> $corelinks
  * @property-read int|null $corelinks_count
- * @method static Builder|CoreBundle active()
- * @method static Builder|CoreBundle newModelQuery()
- * @method static Builder|CoreBundle newQuery()
- * @method static Builder|CoreBundle query()
- * @method static Builder|CoreBundle whereBfd($value)
- * @method static Builder|CoreBundle whereCost($value)
- * @method static Builder|CoreBundle whereCreatedAt($value)
- * @method static Builder|CoreBundle whereDescription($value)
- * @method static Builder|CoreBundle whereEnabled($value)
- * @method static Builder|CoreBundle whereGraphTitle($value)
- * @method static Builder|CoreBundle whereId($value)
- * @method static Builder|CoreBundle whereIpv4Subnet($value)
- * @method static Builder|CoreBundle whereIpv6Subnet($value)
- * @method static Builder|CoreBundle wherePreference($value)
- * @method static Builder|CoreBundle whereStp($value)
- * @method static Builder|CoreBundle whereType($value)
- * @method static Builder|CoreBundle whereUpdatedAt($value)
+ * @method static Builder<static>|CoreBundle active()
+ * @method static Builder<static>|CoreBundle newModelQuery()
+ * @method static Builder<static>|CoreBundle newQuery()
+ * @method static Builder<static>|CoreBundle query()
+ * @method static Builder<static>|CoreBundle whereBfd($value)
+ * @method static Builder<static>|CoreBundle whereCost($value)
+ * @method static Builder<static>|CoreBundle whereCreatedAt($value)
+ * @method static Builder<static>|CoreBundle whereDescription($value)
+ * @method static Builder<static>|CoreBundle whereEnabled($value)
+ * @method static Builder<static>|CoreBundle whereGraphTitle($value)
+ * @method static Builder<static>|CoreBundle whereId($value)
+ * @method static Builder<static>|CoreBundle whereIpv4Subnet($value)
+ * @method static Builder<static>|CoreBundle whereIpv6Subnet($value)
+ * @method static Builder<static>|CoreBundle wherePreference($value)
+ * @method static Builder<static>|CoreBundle whereStp($value)
+ * @method static Builder<static>|CoreBundle whereType($value)
+ * @method static Builder<static>|CoreBundle whereUpdatedAt($value)
  * @mixin \Eloquent
  */
 class CoreBundle extends Model
@@ -112,14 +112,14 @@ class CoreBundle extends Model
     /**
      * CONST TYPES
      */
-    public const TYPE_ECMP              = 1;
-    public const TYPE_L2_LAG            = 2;
-    public const TYPE_L3_LAG            = 3;
+    public const int TYPE_ECMP              = 1;
+    public const int TYPE_L2_LAG            = 2;
+    public const int TYPE_L3_LAG            = 3;
 
     /**
      * Array STATES
      */
-    public static $TYPES = [
+    public static array $TYPES = [
         self::TYPE_ECMP          => "ECMP",
         self::TYPE_L2_LAG        => "L2-LAG (e.g. LACP)",
         self::TYPE_L3_LAG        => "L3-LAG",

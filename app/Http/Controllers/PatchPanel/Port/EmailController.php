@@ -76,7 +76,7 @@ class EmailController extends Common
         return view( 'patch-panel-port/email-form' )->with([
             'ppp'                           => $ppp,
             'emailType'                     => $type,
-            'body'                          => $mailable->getBody()
+            'body'                          => $mailable->getPopulatedEmailTemplate()
         ]);
     }
 
@@ -94,7 +94,6 @@ class EmailController extends Common
         $mailable = $this->setupEmailRoutes( $ppp, $type );
 
         $mailable->prepareFromRequest( $r );
-        $mailable->prepareBody( $r );
 
         try {
             $mailable->checkIfSendable();

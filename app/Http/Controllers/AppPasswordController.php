@@ -154,7 +154,7 @@ class AppPasswordController extends EloquentController
     protected static function additionalRoutes( string $route_prefix ): void
     {
         Route::group( [  'prefix' => 'admin/' . $route_prefix ], static function() use ( $route_prefix ) {
-            Route::get(   'history/{id}',            'AppPasswordController@history' )->name( $route_prefix . '@history' );
+            Route::get(   'history/{id}',            [self::class, 'history'] )->name( $route_prefix . '@history' );
         });
     }
 
@@ -366,5 +366,18 @@ class AppPasswordController extends EloquentController
             'feParams' => $this->feParams,
             'data'     => [ 'rows' => $history ],
         ]);
+    }
+
+    #[\Override]
+    public function preDelete(): bool
+    {
+        /** @var User $user */
+        $user = Auth::getUser();
+
+        if( $this->object->user_id !== $user->id ) {
+            abort( 403, 'Unauthorized' );
+        }
+
+        return true;
     }
 }

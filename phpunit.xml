@@ -24,6 +24,8 @@
       <directory suffix="Test.php">./tests/Ixp</directory>
       <directory suffix="Test.php">./tests/Jobs</directory>
       <directory suffix="Test.php">./tests/Models</directory>
+      <directory suffix="Test.php">./tests/Rules</directory>
+      <directory suffix="Test.php">./tests/Policies</directory>
       <directory suffix="Test.php">./tests/Services</directory>
       <directory suffix="Test.php">./tests/Tasks</directory>
       <directory suffix="Test.php">./tests/Utils</directory>
@@ -32,6 +34,7 @@
   <php>
     <const name="APPLICATION_VERSION" value="999.9.9"/>
     <const name="APPLICATION_VERDATE" value="9999999999"/>
+    <const name="DOCUMENTATION_VERSION" value="999.9"/>
     <const name="APPLICATION_STARTTIME" value="0"/>
   </php>
   <source>

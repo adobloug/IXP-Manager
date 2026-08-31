@@ -290,14 +290,6 @@
                 </a>
             </li>
 
-            <?php if( !config( 'ixp_fe.frontend.disabled.rs-prefixes', false ) ): ?>
-                <li class="<?= !request()->is( 'admin/rs-prefixes/*' ) ?: 'active' ?>">
-                    <a href="<?= route( 'rs-prefixes@list' ) ?>" class="nav-link">
-                        Route Server Prefixes
-                    </a>
-                </li>
-            <?php endif; ?>
-
             <li class="<?= request()->is( 'admin/router/*' ) && !request()->is( 'admin/router/status' ) ? 'active' : '' ?>" >
                 <a href="<?= route('router@list' ) ?>" class="nav-link" >
                     Routers
@@ -419,6 +411,12 @@
                     </a>
                 </li>
             <?php endif; ?>
+
+            <li class="<?= request()->is( 'admin/validation*' ) ? 'active' : ''?>">
+                <a href="<?= route( 'validation@start' ) ?>" class="nav-link">
+                    System Validation
+                </a>
+            </li>
 
             <?php if( Gate::allows( 'viewHorizon' ) && config( 'queue.default' ) === 'redis' ): ?>
                 <li>

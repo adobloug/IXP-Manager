@@ -10,6 +10,7 @@ on:
 
 jobs:
   mirror_to_gitlab:
+    if: github.repository == 'inex/IXP-Manager'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository

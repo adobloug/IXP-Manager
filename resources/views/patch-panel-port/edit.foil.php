@@ -8,7 +8,7 @@ $this->layout( 'layouts/ixpv4' );
 <?php $this->section( 'page-header-preamble' ) ?>
     Patch Panel Port
     /
-    Edit&nbsp;&nbsp;[<?= $t->ee( $ppp->patchPanel->name ) ?> - <?= $t->ee( $pppname ) ?>]
+    Edit&nbsp;&nbsp;[<?= $t->ee( $ppp->patchPanel->name ) ?> <?php if ( !$ppp->patchPanel->active ): ?>[Inactive]<?php endif; ?> - <?= $t->ee( $pppname ) ?>]
 <?php $this->append() ?>
 
 <?php $this->section( 'page-header-postamble' ) ?>
@@ -174,8 +174,8 @@ $this->layout( 'layouts/ixpv4' );
                 <div class="mr-auto col-lg-11 col-md-10">
                     <?= Former::select( 'customer_id' )
                         ->label( ucfirst( config( 'ixp_fe.lang.customer.one' ) ) )
+                        ->addOption( 'Choose a ' . config( 'ixp_fe.lang.customer.one' ), '', [ 'disabled' => 'disabled' ] )
                         ->fromQuery( $t->customers , fn ( $model ) => $t->ee( $model->name ) )
-                        ->placeholder( 'Choose a ' . config( 'ixp_fe.lang.customer.one' ) )
                         ->addClass( 'chzn-select' )
                         ->append(  $ppp->customer ? "<span class='badge badge-info'> Was " . $t->ee( $ppp->customer->name ). " </span>" : '' );
                     ?>

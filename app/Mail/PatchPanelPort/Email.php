@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright (C) 2009 - 2020 Internet Neutral Exchange Association Company Limited By Guarantee.
+ * Copyright (C) 2009 - 2026 Internet Neutral Exchange Association Company Limited By Guarantee.
  * All Rights Reserved.
  *
  * This file is part of IXP Manager.
@@ -31,6 +31,7 @@ use IXP\Exceptions\Mailable as MailableException;
 
 use IXP\Http\Requests\EmailPatchPanelPort as EmailPatchPanelPortRequest;
 
+use IXP\Mail\Trait\MarkdownContent;
 use IXP\Models\PatchPanelPort;
 
 /**
@@ -38,19 +39,17 @@ use IXP\Models\PatchPanelPort;
  *
  * @author     Barry O'Donovan <barry@islandbridgenetworks.ie>
  * @author     Yann Robin      <yann@islandbridgenetworks.ie>
+ * @author     Thomas Kerin    <thomas@islandbridgenetworks.ie>
  * @category   PatchPanel
  * @package    IXP\Mail\PatchPanelPort
- * @copyright  Copyright (C) 2009 - 2020 Internet Neutral Exchange Association Company Limited By Guarantee
+ * @copyright  Copyright (C) 2009 - 2026 Internet Neutral Exchange Association Company Limited By Guarantee
  * @license    http://www.gnu.org/licenses/gpl-2.0.html GNU GPL V2.0
  */
 abstract class Email extends Mailable
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, MarkdownContent;
 
-    /**
-     * @var PatchPanelPort
-     */
-    public $ppp;
+    public PatchPanelPort $ppp;
 
     /**
      * @var string
@@ -58,19 +57,9 @@ abstract class Email extends Mailable
     public $subject;
 
     /**
-     * @var string The template to use to create the email
+     * @var string The template of the email which we are building - specified in implementing classes
      */
     protected $tmpl;
-
-    /**
-     * @var string Temporary view file
-     */
-    protected $tmpfile;
-
-    /**
-     * @var string Temporary view name
-     */
-    protected $tmpname;
 
     /**
      * Create a new message instance.
@@ -86,27 +75,6 @@ abstract class Email extends Mailable
         }
 
         $this->bcc( config( 'identity.support_email'), config( 'identity.name' ) . ' Operations' );
-    }
-
-    /**
-     * Destructor
-     */
-    public function __destruct()
-    {
-        // remove temporary file if it exists
-        if( $this->tmpfile && file_exists( $this->tmpfile ) ){
-            @unlink( $this->tmpfile );
-        }
-    }
-
-    /**
-     * Build the message.
-     *
-     * @return $this
-     */
-    public function build(): self
-    {
-        return $this;
     }
 
     /**
@@ -141,19 +109,17 @@ abstract class Email extends Mailable
     }
 
     /**
-     * Get the email's body
-     *
-     * For this we assume Markdown and return the template as is (with
-     * rendered data).
+     * Populate the email template with view data. This is used to show the email
+     * to the user in advance of sending.
      *
      * @return string The Email's body
      */
-    public function getBody(): string
+    public function getPopulatedEmailTemplate(): string
     {
         return view( $this->tmpl )->with( $this->buildViewData() )->render();
     }
 
-    /**
+    /**`
      * Set up recipients and subject from a POST request.
      *
      * @param EmailPatchPanelPortRequest $request
@@ -179,29 +145,8 @@ abstract class Email extends Mailable
         }
 
         $this->subject( $request->email_subject );
-    }
 
-    /**
-     * Set up Markdown body from a POST request.
-     *
-     * @param EmailPatchPanelPortRequest $request
-     *
-     * @return void
-     */
-    public function prepareBody( EmailPatchPanelPortRequest $request ): void
-    {
-        // Templating is slightly awkward here as Laravel's Mailable is built around reading the
-        // body from a template file be we have it via post.
-        //
-        // To work around this, we'll use a temporary file in a new view namespace.
-
-        $body          = $request->email_text;
-        $this->tmpfile = tempnam( sys_get_temp_dir(), 'ppp_email_' );
-        $this->tmpname = basename( $this->tmpfile );
-        $this->tmpfile .= '.blade.php';
-        file_put_contents( $this->tmpfile, "@component('mail::message')\n\n" . $body . "\n\n@endcomponent\n" );
-        view()->addNamespace('ppp_emails', sys_get_temp_dir() );
-        $this->markdown( 'ppp_emails::' . $this->tmpname );
+        $this->userMarkdown = $request->email_text;
     }
 
     /**
@@ -217,8 +162,8 @@ abstract class Email extends Mailable
             throw new MailableException( "No valid recipients" );
         }
 
-        if( !view()->exists( $this->markdown ) ) {
-            throw new MailableException( "Could not create / load temporary template" );
+        if ( strlen($this->userMarkdown) === 0) {
+            throw new MailableException( "Missing markdown email body" );
         }
     }
 }
